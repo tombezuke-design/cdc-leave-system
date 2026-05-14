@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบลางาน CDC</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f4f6f9; padding: 20px; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
+        label { font-weight: bold; margin-top: 10px; display: block; }
+        input, select, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background-color: #00B900; color: white; border: none; font-size: 16px; font-weight: bold; margin-top: 20px; cursor: pointer; }
+        .hidden { display: none; }
+        #loading { text-align: center; color: #666; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="loading">กำลังโหลดข้อมูล...</div>
+
+    <div id="registerForm" class="hidden">
+        <h2>ลงทะเบียนพนักงาน</h2>
+        <label>ชื่อ-นามสกุล:</label>
+        <input type="text" id="empName" placeholder="เช่น สมชาย ใจดี">
+        <label>เลขบัตรประชาชน:</label>
+        <input type="text" id="idCard" placeholder="13 หลัก">
+        <label>เบอร์ติดต่อ:</label>
+        <input type="text" id="phone" placeholder="08xxxxxxxx">
+        <button onclick="submitRegister()">ลงทะเบียน</button>
+    </div>
+
+    <div id="leaveForm" class="hidden">
+        <h2 id="greeting">แจ้งลางาน</h2>
+        <label>ประเภทการลา:</label>
+        <select id="leaveType">
+            <option value="ลาป่วย">ลาป่วย</option>
+            <option value="ลากิจ">ลากิจ</option>
+            <option value="ลาพักร้อน">ลาพักร้อน</option>
+        </select>
+        <label>เริ่มวันที่:</label>
+        <input type="date" id="startDate">
+        <label>ถึงวันที่:</label>
+        <input type="date" id="endDate">
+        <button onclick="submitLeave()">ส่งคำขออนุญาตลา</button>
+    </div>
+</div>
+
+<script>
+    // 👇👇 1. เอาลิงก์ Web App URL จาก Google Script มาวางแทนที่ข้อความด้านล่างนี้ (ในเครื่องหมายคำพูด) 👇👇
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyxLFuJ9Ep8ad-Zd2A1oyzARI_EOz3C9YFrEyhiJgRDFSDHhL332CUv48n7tSAPR9VN/exec"; 
+    
+    // 👇👇 2. รหัส LIFF ID ของคุณ (ผมใส่ให้แล้ว) 👇👇
+    const LIFF_ID = "2010085241-Szu0Ekco";
+
+    let userLineId = "";
+
+    async function main() {
+        await liff.init({ liffId: LIFF_ID });
+        if (!liff.isLoggedIn()) {
+            liff.login();
+        } else {
+            const profile = await liff.getProfile();
+            userLineId = profile.userId;
+            checkUser(userLineId);
+        }
+    }
+
+    function checkUser(lineId) {
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "checkUser", lineId: lineId })
+        }).then(res => res.json()).then(data => {
+            document.getElementById("loading").classList.add("hidden");
+            if (data.status === "new_user") {
+                document.getElementById("registerForm").classList.remove("hidden");
+            } else {
+                document.getElementById("greeting").innerText = "สวัสดีคุณ " + data.name;
+                document.getElementById("leaveForm").classList.remove("hidden");
+            }
+        });
+    }
+
+    function submitRegister() {
+        const name = document.getElementById("empName").value;
+        const idCard = document.getElementById("idCard").value;
+        const phone = document.getElementById("phone").value;
+        
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "register", lineId: userLineId, name: name, idCard: idCard, phone: phone })
+        }).then(res => res.json()).then(data => {
+            alert("ลงทะเบียนสำเร็จ!");
+            document.getElementById("registerForm").classList.add("hidden");
+            checkUser(userLineId); // โหลดหน้าลา
+        });
+    }
+
+    function submitLeave() {
+        const leaveType = document.getElementById("leaveType").value;
+        const startDate = document.getElementById("startDate").value;
+        const endDate = document.getElementById("endDate").value;
+
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "leave", lineId: userLineId, type: leaveType, startDate: startDate, endDate: endDate })
+        }).then(res => res.json()).then(data => {
+            alert("บันทึกการลาสำเร็จเรียบร้อย");
+            liff.closeWindow(); // ปิดหน้าต่าง LINE อัตโนมัติ
+        });
+    }
+
+    main();
+</script>
+</body>
+</html>
