@@ -6,14 +6,17 @@
     <title>ระบบลางาน CDC</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: 'Sarabun', sans-serif; background-color: #f4f6f9; padding: 20px; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f4f6f9; padding: 15px; }
         .container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #333; }
-        label { font-weight: bold; margin-top: 10px; display: block; }
+        h2, h3 { text-align: center; color: #333; margin-bottom: 10px; }
+        label { font-weight: bold; margin-top: 10px; display: block; font-size: 14px; }
         input, select, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
-        button { background-color: #00B900; color: white; border: none; font-size: 16px; font-weight: bold; margin-top: 20px; cursor: pointer; }
+        .btn-main { background-color: #00B900; color: white; border: none; font-size: 16px; font-weight: bold; margin-top: 20px; cursor: pointer; }
+        .btn-cancel { background-color: #ff4d4f; color: white; padding: 6px; font-size: 12px; margin-top: 5px; width: auto; display: inline-block; }
         .hidden { display: none; }
-        #loading { text-align: center; color: #666; }
+        .history-card { border: 1px solid #eee; padding: 10px; margin-top: 10px; border-radius: 6px; background: #fafafa; font-size: 14px; }
+        .status-badge { font-weight: bold; color: #0056b3; }
+        #loading { text-align: center; color: #666; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -22,43 +25,54 @@
     <div id="loading">กำลังโหลดข้อมูล...</div>
 
     <div id="registerForm" class="hidden">
-        <h2>ลงทะเบียนพนักงาน</h2>
+        <h2>ลงทะเบียนใช้งานครั้งแรก</h2>
         <label>ชื่อ-นามสกุล:</label>
         <input type="text" id="empName" placeholder="เช่น สมชาย ใจดี">
         <label>เลขบัตรประชาชน:</label>
         <input type="text" id="idCard" placeholder="13 หลัก">
         <label>เบอร์ติดต่อ:</label>
         <input type="text" id="phone" placeholder="08xxxxxxxx">
-        <button onclick="submitRegister()">ลงทะเบียน</button>
+        <button class="btn-main" onclick="submitRegister()">ลงทะเบียน</button>
     </div>
 
     <div id="leaveForm" class="hidden">
-        <h2 id="greeting">แจ้งลางาน</h2>
+        <h2 id="greeting" style="color:#00B900;">แจ้งลางาน</h2>
         <label>ประเภทการลา:</label>
-        <select id="leaveType">
-            <option value="ลาป่วย">ลาป่วย</option>
+        <select id="leaveType" onchange="toggleCertUI()">
             <option value="ลากิจ">ลากิจ</option>
+            <option value="ลาป่วย">ลาป่วย</option>
             <option value="ลาพักร้อน">ลาพักร้อน</option>
         </select>
+        
         <label>เริ่มวันที่:</label>
         <input type="date" id="startDate">
         <label>ถึงวันที่:</label>
         <input type="date" id="endDate">
-        <button onclick="submitLeave()">ส่งคำขออนุญาตลา</button>
-        <!-- เพิ่มใน leaveForm ของ index.html -->
-        <label>รูปใบรับรองแพทย์ (ถ้ามี):</label>
-        <input type="file" id="medicalCert" accept="image/*">
-        <div style="margin-top:5px;">
-            <input type="checkbox" id="noCert" style="width: auto;"> ไม่มีใบรับรองแพทย์
+
+        <div id="certSection" class="hidden" style="background:#f9f9f9; padding:10px; border:1px dashed #ccc; margin-top:10px;">
+            <label style="margin-top:0;">แนบรูปใบรับรองแพทย์:</label>
+            <input type="file" id="medicalCert" accept="image/*">
+            <div style="margin-top:10px;">
+                <input type="checkbox" id="noCert" style="width: auto;" onchange="document.getElementById('medicalCert').disabled = this.checked;"> 
+                <span style="font-size: 14px;">ไม่มีใบรับรองแพทย์</span>
+            </div>
         </div>
+
+        <button class="btn-main" id="btnSubmit" onclick="submitLeave()">ส่งคำขออนุญาตลา</button>
+        <hr style="margin-top: 25px; border: 0; border-top: 1px solid #ddd;">
+    </div>
+
+    <div id="historySection" class="hidden">
+        <h3>ประวัติการลาของคุณ</h3>
+        <div id="historyList"></div>
     </div>
 </div>
 
 <script>
-    // 👇👇 1. เอาลิงก์ Web App URL จาก Google Script มาวางแทนที่ข้อความด้านล่างนี้ (ในเครื่องหมายคำพูด) 👇👇
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtA3wgLYcyEjVBJS91VqP3Vxv6wHsCl4Ec_vuwt1828PP5hlRZcqRQG_FxtvzEzchT/exec"; 
+    // 👇 1. เอาลิงก์ Web App URL ใหม่มาใส่ตรงนี้ 👇
+    const GOOGLE_SCRIPT_URL = "ใส่_URL_ของ_GOOGLE_APPS_SCRIPT_ที่นี่"; 
     
-    // 👇👇 2. รหัส LIFF ID ของคุณ (ผมใส่ให้แล้ว) 👇👇
+    // 👇 2. LIFF ID ของคุณ 👇
     const LIFF_ID = "2010085241-Szu0Ekco";
 
     let userLineId = "";
@@ -67,56 +81,145 @@
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) {
             liff.login();
+            return;
+        }
+
+        // เช็คว่าแอดมินกดอนุมัติมาหรือไม่
+        const urlParams = new URLSearchParams(window.location.search);
+        const action = urlParams.get('action');
+        if (action === 'approve' || action === 'reject') {
+            document.getElementById("loading").innerText = "กำลังบันทึกการอนุมัติ...";
+            await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: action, rowId: urlParams.get('rowId'), userId: urlParams.get('userId') }) });
+            alert("ดำเนินการเรียบร้อยแล้ว");
+            liff.closeWindow();
         } else {
-            const profile = await liff.getProfile();
-            userLineId = profile.userId;
+            userLineId = (await liff.getProfile()).userId;
             checkUser(userLineId);
         }
     }
 
     function checkUser(lineId) {
-        fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: "checkUser", lineId: lineId })
-        }).then(res => res.json()).then(data => {
+        fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: "checkUser", lineId: lineId }) })
+        .then(res => res.json()).then(data => {
             document.getElementById("loading").classList.add("hidden");
             if (data.status === "new_user") {
                 document.getElementById("registerForm").classList.remove("hidden");
             } else {
                 document.getElementById("greeting").innerText = "สวัสดีคุณ " + data.name;
                 document.getElementById("leaveForm").classList.remove("hidden");
+                renderHistory(data.history);
             }
         });
     }
 
+    function toggleCertUI() {
+        const type = document.getElementById("leaveType").value;
+        const certSection = document.getElementById("certSection");
+        if (type === "ลาป่วย") {
+            certSection.classList.remove("hidden");
+        } else {
+            certSection.classList.add("hidden");
+            document.getElementById("noCert").checked = false;
+            document.getElementById("medicalCert").disabled = false;
+        }
+    }
+
+    function renderHistory(historyList) {
+        const listDiv = document.getElementById("historyList");
+        listDiv.innerHTML = "";
+        if(!historyList || historyList.length === 0) {
+            listDiv.innerHTML = "<p style='text-align:center; color:#999; font-size:14px;'>ยังไม่มีประวัติการลา</p>";
+            document.getElementById("historySection").classList.remove("hidden");
+            return;
+        }
+
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        historyList.forEach(item => {
+            // เช็คเงื่อนไขแสดงปุ่มยกเลิก (ห้ามยกเลิกย้อนหลัง และสถานะต้องไม่ใช่ยกเลิก/ปฏิเสธ)
+            const startDateParts = item.startDate.split("/"); // สมมติรูปแบบ DD/MM/YYYY
+            let leaveStartDate = new Date(item.rawStartDate); // อาศัยค่า raw date จากหลังบ้าน
+            
+            let btnHtml = "";
+            if (item.status !== "ยกเลิก" && item.status !== "ปฏิเสธ" && leaveStartDate > today) {
+                btnHtml = `<button class="btn-cancel" onclick="cancelLeave('${item.rowId}')">✖ ยกเลิกการลานี้</button>`;
+            }
+
+            listDiv.innerHTML += `
+                <div class="history-card">
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong>${item.type}</strong>
+                        <span class="status-badge">${item.status}</span>
+                    </div>
+                    <div style="color:#555; margin-top:5px;">วันที่: ${item.startDate} ถึง ${item.endDate}</div>
+                    ${btnHtml}
+                </div>
+            `;
+        });
+        document.getElementById("historySection").classList.remove("hidden");
+    }
+
+    async function submitLeave() {
+        document.getElementById("btnSubmit").innerText = "กำลังส่งข้อมูล...";
+        document.getElementById("btnSubmit").disabled = true;
+
+        const type = document.getElementById("leaveType").value;
+        const fileInput = document.getElementById("medicalCert");
+        const noCert = document.getElementById("noCert").checked;
+        let imageBase64 = "";
+
+        if (type === "ลาป่วย" && fileInput.files.length > 0 && !noCert) {
+            imageBase64 = await toBase64(fileInput.files[0]);
+            imageBase64 = imageBase64.split(',')[1]; // เอาเฉพาะ Data
+        }
+
+        const payload = {
+            action: "leave",
+            lineId: userLineId,
+            type: type,
+            startDate: document.getElementById("startDate").value,
+            endDate: document.getElementById("endDate").value,
+            imageBlob: imageBase64,
+            noCert: noCert
+        };
+
+        fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) })
+        .then(res => res.json()).then(data => {
+            alert("บันทึกการลาและส่งแจ้งเตือนเรียบร้อย");
+            liff.closeWindow();
+        });
+    }
+
+    function cancelLeave(rowId) {
+        if(confirm("คุณแน่ใจหรือไม่ว่าต้องการ 'ยกเลิก' การลานี้?")) {
+            fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: "cancelLeave", lineId: userLineId, rowId: rowId }) })
+            .then(res => res.json()).then(data => {
+                if(data.status === "success") {
+                    alert("ยกเลิกการลาเรียบร้อยแล้ว");
+                    location.reload(); // รีเฟรชหน้าจอใหม่
+                } else {
+                    alert(data.message);
+                }
+            });
+        }
+    }
+
     function submitRegister() {
-        const name = document.getElementById("empName").value;
-        const idCard = document.getElementById("idCard").value;
-        const phone = document.getElementById("phone").value;
-        
-        fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: "register", lineId: userLineId, name: name, idCard: idCard, phone: phone })
-        }).then(res => res.json()).then(data => {
+        const payload = { action: "register", lineId: userLineId, name: document.getElementById("empName").value, idCard: document.getElementById("idCard").value, phone: document.getElementById("phone").value };
+        fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) })
+        .then(res => res.json()).then(data => {
             alert("ลงทะเบียนสำเร็จ!");
-            document.getElementById("registerForm").classList.add("hidden");
-            checkUser(userLineId); // โหลดหน้าลา
+            location.reload();
         });
     }
 
-    function submitLeave() {
-        const leaveType = document.getElementById("leaveType").value;
-        const startDate = document.getElementById("startDate").value;
-        const endDate = document.getElementById("endDate").value;
-
-        fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: "leave", lineId: userLineId, type: leaveType, startDate: startDate, endDate: endDate })
-        }).then(res => res.json()).then(data => {
-            alert("บันทึกการลาสำเร็จเรียบร้อย");
-            liff.closeWindow(); // ปิดหน้าต่าง LINE อัตโนมัติ
-        });
-    }
+    const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
 
     main();
 </script>
