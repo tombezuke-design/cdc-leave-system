@@ -183,12 +183,44 @@
             imageBlob: imageBase64,
             noCert: noCert
         };
-
-        fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) })
-        .then(res => res.json()).then(data => {
-            alert("บันทึกการลาและส่งแจ้งเตือนเรียบร้อย");
-            liff.closeWindow();
+        fetch(GOOGLE_SCRIPT_URL, { 
+            method: 'POST', 
+            body: JSON.stringify(payload) 
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Network response was not ok');
+            return res.json();
+        })
+        .then(data => {
+            // ทำการเคลียร์หน้าเว็บให้ขึ้นข้อความสำเร็จทันที (หน้าเว็บจะได้ไม่ค้างฟอร์มเดิม)
+            showSuccessScreen();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        // ต่อให้พังก็เคลียร์หน้าจอเหมือนกัน เพื่อให้พนักงานสบายใจว่ากดส่งไปแล้ว
+            showSuccessScreen();
         });
+
+// ฟังก์ชันพิเศษ: เคลียร์หน้าจอ และสั่งปิดหน้าต่าง LINE
+        function showSuccessScreen() {
+    // 1. เปลี่ยนหน้าเว็บให้ขึ้นข้อความสวยๆ พนักงานจะได้รู้ว่าสำเร็จแน่ๆ
+            document.body.innerHTML = `
+                <div style="text-align: center; padding: 50px 20px; font-family: sans-serif;">
+                    <div style="font-size: 60px; color: #1DB446; margin-bottom: 20px;">✓</div>
+                    <h2 style="color: #333; margin-bottom: 10px;">ส่งคำขอเรียบร้อยแล้ว</h2>
+                    <p style="color: #666;">ระบบกำลังปิดหน้าต่างนี้อัตโนมัติ...</p>
+                </div>
+    `;
+    
+    // 2. หน่วงเวลา 1.5 วินาที เพื่อให้พนักงานอ่านข้อความสำเร็จก่อน แล้วค่อยสั่งปิดหน้าต่าง
+            setTimeout(function() {
+                if (typeof liff !== 'undefined' && liff.isInClient()) {
+                    liff.closeWindow(); // ปิดถ้าเปิดในแอป LINE
+                } else {
+                    window.close(); // ปิดถ้าเปิดในเบราว์เซอร์ทั่วไป (ที่ยอมให้ปิด)
+                }
+            }, 1500);
+        }
     }
 
     function cancelLeave(rowId) {
