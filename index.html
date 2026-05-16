@@ -69,12 +69,8 @@
 </div>
 
 <script>
-    // 👇 1. เอาลิงก์ Web App URL ใหม่มาใส่ตรงนี้ 👇
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxdR_EfLr3MxNGWZ6TW4KAKLSU37gcLYqRtsltU-GWd9y19WpHbDVZpO9HZiRrTeKo/exec"; 
-    
-    // 👇 2. LIFF ID ของคุณ 👇
     const LIFF_ID = "2010085241-Szu0Ekco";
-
     let userLineId = "";
 
     async function main() {
@@ -84,7 +80,6 @@
             return;
         }
 
-        // เช็คว่าแอดมินกดอนุมัติมาหรือไม่
         const urlParams = new URLSearchParams(window.location.search);
         const action = urlParams.get('action');
         if (action === 'approve' || action === 'reject') {
@@ -137,10 +132,7 @@
         today.setHours(0,0,0,0);
 
         historyList.forEach(item => {
-            // เช็คเงื่อนไขแสดงปุ่มยกเลิก (ห้ามยกเลิกย้อนหลัง และสถานะต้องไม่ใช่ยกเลิก/ปฏิเสธ)
-            const startDateParts = item.startDate.split("/"); // สมมติรูปแบบ DD/MM/YYYY
-            let leaveStartDate = new Date(item.rawStartDate); // อาศัยค่า raw date จากหลังบ้าน
-            
+            let leaveStartDate = new Date(item.rawStartDate); 
             let btnHtml = "";
             if (item.status !== "ยกเลิก" && item.status !== "ปฏิเสธ" && leaveStartDate > today) {
                 btnHtml = `<button class="btn-cancel" onclick="cancelLeave('${item.rowId}')">✖ ยกเลิกการลานี้</button>`;
@@ -171,7 +163,7 @@
 
         if (type === "ลาป่วย" && fileInput.files.length > 0 && !noCert) {
             imageBase64 = await toBase64(fileInput.files[0]);
-            imageBase64 = imageBase64.split(',')[1]; // เอาเฉพาะ Data
+            imageBase64 = imageBase64.split(',')[1]; 
         }
 
         const payload = {
@@ -193,69 +185,38 @@
             return res.json();
         })
         .then(data => {
-            // เรียกใช้ฟังก์ชันเคลียร์หน้าจอ (แยกอยู่ด้านล่าง)
             showSuccessScreen();
         })
         .catch(error => {
             console.error('Error:', error);
-            // ต่อให้หลังบ้านตอบกลับช้าหรือพัง ก็ให้เคลียร์หน้าจอพนักงานเพื่อปิดฟอร์มทันที
             showSuccessScreen();
         });
     }
 
-    // 🌟 ฟังก์ชันพิเศษ 1: เปลี่ยนหน้าจอเป็นสถานะสำเร็จ (แยกออกมาอยู่ข้างนอกเพื่อความเสถียร)
     function showSuccessScreen() {
         document.body.innerHTML = `
             <div style="text-align: center; padding: 60px 20px; font-family: 'Sarabun', sans-serif;">
                 <div style="font-size: 70px; color: #00B900; margin-bottom: 20px;">✓</div>
                 <h2 style="color: #333; margin-bottom: 10px;">ส่งคำขอเรียบร้อยแล้ว</h2>
                 <p style="color: #666; margin-bottom: 30px;">ระบบกำลังปิดหน้าต่างนี้อัตโนมัติ...</p>
-                
                 <button onclick="executeClose()" style="background-color: #ff4d4f; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; width: auto; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     คลิกที่นี่หากหน้าต่างไม่ปิด
                 </button>
             </div>
         `;
-        
-        // สั่งปิดหน้าต่างทันที 1 รอบ
         executeClose();
-        // หน่วงเวลาอีก 1.5 วินาที แล้วสั่งปิดซ้ำอีกรอบเพื่อความชัวร์
         setTimeout(executeClose, 1500);
     }
 
-    // 🌟 ฟังก์ชันพิเศษ 2: สั่งบังคับปิดหน้าต่างทุกวิถีทาง
     function executeClose() {
         try {
             if (typeof liff !== 'undefined') {
-                liff.closeWindow(); // สั่งปิดผ่านระบบ LINE LIFF
+                liff.closeWindow(); 
             }
         } catch (e) { console.error(e); }
-        
         try {
-            window.close(); // สั่งปิดผ่านเบราว์เซอร์ทั่วไป
+            window.close(); 
         } catch (e) { console.error(e); }
-    }
-
-// ฟังก์ชันพิเศษ: เคลียร์หน้าจอ และสั่งปิดหน้าต่าง LINE
-        function showSuccessScreen() {
-    // 1. เปลี่ยนหน้าเว็บให้ขึ้นข้อความสวยๆ พนักงานจะได้รู้ว่าสำเร็จแน่ๆ
-            document.body.innerHTML = `
-                <div style="text-align: center; padding: 50px 20px; font-family: sans-serif;">
-                    <div style="font-size: 60px; color: #1DB446; margin-bottom: 20px;">✓</div>
-                    <h2 style="color: #333; margin-bottom: 10px;">ส่งคำขอเรียบร้อยแล้ว</h2>
-                    <p style="color: #666;">ระบบกำลังปิดหน้าต่างนี้อัตโนมัติ...</p>
-                </div>
-    `;
-    
-    // 2. หน่วงเวลา 1.5 วินาที เพื่อให้พนักงานอ่านข้อความสำเร็จก่อน แล้วค่อยสั่งปิดหน้าต่าง
-            setTimeout(function() {
-                if (typeof liff !== 'undefined' && liff.isInClient()) {
-                    liff.closeWindow(); // ปิดถ้าเปิดในแอป LINE
-                } else {
-                    window.close(); // ปิดถ้าเปิดในเบราว์เซอร์ทั่วไป (ที่ยอมให้ปิด)
-                }
-            }, 1500);
-        }
     }
 
     function cancelLeave(rowId) {
@@ -264,7 +225,7 @@
             .then(res => res.json()).then(data => {
                 if(data.status === "success") {
                     alert("ยกเลิกการลาเรียบร้อยแล้ว");
-                    location.reload(); // รีเฟรชหน้าจอใหม่
+                    location.reload(); 
                 } else {
                     alert(data.message);
                 }
