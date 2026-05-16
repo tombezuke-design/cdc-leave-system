@@ -183,6 +183,7 @@
             imageBlob: imageBase64,
             noCert: noCert
         };
+
         fetch(GOOGLE_SCRIPT_URL, { 
             method: 'POST', 
             body: JSON.stringify(payload) 
@@ -192,14 +193,48 @@
             return res.json();
         })
         .then(data => {
-            // ทำการเคลียร์หน้าเว็บให้ขึ้นข้อความสำเร็จทันที (หน้าเว็บจะได้ไม่ค้างฟอร์มเดิม)
+            // เรียกใช้ฟังก์ชันเคลียร์หน้าจอ (แยกอยู่ด้านล่าง)
             showSuccessScreen();
         })
         .catch(error => {
             console.error('Error:', error);
-        // ต่อให้พังก็เคลียร์หน้าจอเหมือนกัน เพื่อให้พนักงานสบายใจว่ากดส่งไปแล้ว
+            // ต่อให้หลังบ้านตอบกลับช้าหรือพัง ก็ให้เคลียร์หน้าจอพนักงานเพื่อปิดฟอร์มทันที
             showSuccessScreen();
         });
+    }
+
+    // 🌟 ฟังก์ชันพิเศษ 1: เปลี่ยนหน้าจอเป็นสถานะสำเร็จ (แยกออกมาอยู่ข้างนอกเพื่อความเสถียร)
+    function showSuccessScreen() {
+        document.body.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; font-family: 'Sarabun', sans-serif;">
+                <div style="font-size: 70px; color: #00B900; margin-bottom: 20px;">✓</div>
+                <h2 style="color: #333; margin-bottom: 10px;">ส่งคำขอเรียบร้อยแล้ว</h2>
+                <p style="color: #666; margin-bottom: 30px;">ระบบกำลังปิดหน้าต่างนี้อัตโนมัติ...</p>
+                
+                <button onclick="executeClose()" style="background-color: #ff4d4f; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; width: auto; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    คลิกที่นี่หากหน้าต่างไม่ปิด
+                </button>
+            </div>
+        `;
+        
+        // สั่งปิดหน้าต่างทันที 1 รอบ
+        executeClose();
+        // หน่วงเวลาอีก 1.5 วินาที แล้วสั่งปิดซ้ำอีกรอบเพื่อความชัวร์
+        setTimeout(executeClose, 1500);
+    }
+
+    // 🌟 ฟังก์ชันพิเศษ 2: สั่งบังคับปิดหน้าต่างทุกวิถีทาง
+    function executeClose() {
+        try {
+            if (typeof liff !== 'undefined') {
+                liff.closeWindow(); // สั่งปิดผ่านระบบ LINE LIFF
+            }
+        } catch (e) { console.error(e); }
+        
+        try {
+            window.close(); // สั่งปิดผ่านเบราว์เซอร์ทั่วไป
+        } catch (e) { console.error(e); }
+    }
 
 // ฟังก์ชันพิเศษ: เคลียร์หน้าจอ และสั่งปิดหน้าต่าง LINE
         function showSuccessScreen() {
