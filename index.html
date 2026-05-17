@@ -90,7 +90,7 @@
 </div>
 
 <script>
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUiepAM_YJrSlEs-h6N1u-ecQ9XvOJ-x9V5SEfa5NcWk68dBh00CKC0TZgLcJrJSZt/exec"; 
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxG_hZ6nHGqhmt0a4qatzLuL0vlVKwhOjyQWTZjaECtmTe51o46h6QJloFIcDw9Uq0h/exec"; 
     const LIFF_ID = "2010085241-Szu0Ekco";
     let userLineId = "";
 
@@ -197,8 +197,7 @@
         });
         document.getElementById("historySection").classList.remove("hidden");
     }
-
-    async function submitLeave() {
+async function submitLeave() {
         document.getElementById("btnSubmit").innerText = "กำลังส่งข้อมูล...";
         document.getElementById("btnSubmit").disabled = true;
 
@@ -208,8 +207,17 @@
         const endTime = document.getElementById("endTime").value;
         const fileInput = document.getElementById("medicalCert");
         const noCert = document.getElementById("noCert").checked;
-        let imageBase64 = "";
+        
+        // จัดการดึงค่าวันที่
+        let startDate = document.getElementById("startDate").value;
+        let endDate = document.getElementById("endDate").value;
+        
+        // 🛡️ ป้องกันพนักงานลืมเลือกวันที่สิ้นสุด กรณีลาไม่เต็มวัน
+        if (duration !== "เต็มวัน" && !endDate) {
+            endDate = startDate;
+        }
 
+        let imageBase64 = "";
         if (type === "ลาป่วย" && fileInput.files.length > 0 && !noCert) {
             imageBase64 = await toBase64(fileInput.files[0]);
             imageBase64 = imageBase64.split(',')[1]; 
@@ -222,8 +230,8 @@
             duration: duration,
             startTime: startTime,
             endTime: endTime,
-            startDate: document.getElementById("startDate").value,
-            endDate: document.getElementById("endDate").value,
+            startDate: startDate,
+            endDate: endDate,
             imageBlob: imageBase64,
             noCert: noCert
         };
@@ -233,13 +241,14 @@
             body: JSON.stringify(payload) 
         })
         .then(res => {
-            if (!res.ok) throw new Error('Network response was not ok');
+            if (!res.ok) throw new Error('เซิร์ฟเวอร์หลังบ้านตอบกลับผิดพลาด (500 Error)');
             return res.json();
         })
         .then(data => {
             if (data.status === "success") {
                 showSuccessScreen();
             } else {
+                // แจ้งเตือนกรณีเกินโควตา หรือเกิด Error หลังบ้านที่แท้จริง
                 alert(data.message);
                 document.getElementById("btnSubmit").innerText = "ส่งคำขออนุญาตลา";
                 document.getElementById("btnSubmit").disabled = false;
@@ -247,11 +256,13 @@
         })
         .catch(error => {
             console.error('Error:', error);
-            showSuccessScreen();
+            // แสดงข้อความจริงเมื่อโค้ดพัง ไม่แอบรันเข้าหน้าจอสำเร็จสีเขียวอีกต่อไป
+            alert("❌ ระบบขัดข้อง: " + error.message + "\nกรุณาตรวจสอบการตั้งค่า Deploy หลังบ้านหรือลองใหมู่อีกครั้งครับ");
+            document.getElementById("btnSubmit").innerText = "ส่งคำขออนุญาตลา";
+            document.getElementById("btnSubmit").disabled = false;
         });
     }
-
-    function showSuccessScreen() {
+        function showSuccessScreen() {
         document.body.innerHTML = `
             <div style="text-align: center; padding: 60px 20px; font-family: 'Sarabun', sans-serif;">
                 <div style="font-size: 70px; color: #00B900; margin-bottom: 20px;">✓</div>
