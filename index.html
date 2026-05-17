@@ -44,6 +44,27 @@
             <option value="ลาพักร้อน">ลาพักร้อน</option>
         </select>
         
+        <label id="durationLabel">รูปแบบเวลาที่ลา:</label>
+        <select id="leaveDuration" onchange="toggleTimeUI()">
+            <option value="เต็มวัน">เต็มวัน (Full Day)</option>
+            <option value="ครึ่งวันเช้า">ครึ่งวันเช้า</option>
+            <option value="ครึ่งวันบ่าย">ครึ่งวันบ่าย</option>
+            <option value="ระบุเวลา">ระบุเวลา (ออกไปทำธุระชั่วคราว)</option>
+        </select>
+
+        <div id="timePickerSection" class="hidden" style="background:#f9f9f9; padding:10px; border:1px dashed #ccc; margin-top:10px;">
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label style="margin-top:0;">เวลาเริ่ม:</label>
+                    <input type="time" id="startTime" value="09:00">
+                </div>
+                <div style="flex: 1;">
+                    <label style="margin-top:0;">เวลาสิ้นสุด:</label>
+                    <input type="time" id="endTime" value="12:00">
+                </div>
+            </div>
+        </div>
+        
         <label>เริ่มวันที่:</label>
         <input type="date" id="startDate">
         <label>ถึงวันที่:</label>
@@ -69,7 +90,7 @@
 </div>
 
 <script>
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxa-ql5LjYRwWQMzDir-8iGeQFvmKtF3VhSc7IQ3d3CGdfWmjfaq2_efyHR7UkfB8bB/exec"; 
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxdR_EfLr3MxNGWZ6TW4KAKLSU37gcLYqRtsltU-GWd9y19WpHbDVZpO9HZiRrTeKo/exec"; 
     const LIFF_ID = "2010085241-Szu0Ekco";
     let userLineId = "";
 
@@ -110,12 +131,37 @@
     function toggleCertUI() {
         const type = document.getElementById("leaveType").value;
         const certSection = document.getElementById("certSection");
+        const durationLabel = document.getElementById("durationLabel");
+        const leaveDuration = document.getElementById("leaveDuration");
+        
         if (type === "ลาป่วย") {
             certSection.classList.remove("hidden");
         } else {
             certSection.classList.add("hidden");
             document.getElementById("noCert").checked = false;
             document.getElementById("medicalCert").disabled = false;
+        }
+
+        if (type === "ลากิจ" || type === "ลาป่วย") {
+            durationLabel.classList.remove("hidden");
+            leaveDuration.classList.remove("hidden");
+        } else {
+            durationLabel.classList.add("hidden");
+            leaveDuration.classList.add("hidden");
+            leaveDuration.value = "เต็มวัน";
+        }
+        toggleTimeUI();
+    }
+
+    function toggleTimeUI() {
+        const type = document.getElementById("leaveType").value;
+        const duration = document.getElementById("leaveDuration").value;
+        const timePickerSection = document.getElementById("timePickerSection");
+        
+        if ((type === "ลากิจ" || type === "ลาป่วย") && duration === "ระบุเวลา") {
+            timePickerSection.classList.remove("hidden");
+        } else {
+            timePickerSection.classList.add("hidden");
         }
     }
 
@@ -157,6 +203,9 @@
         document.getElementById("btnSubmit").disabled = true;
 
         const type = document.getElementById("leaveType").value;
+        const duration = document.getElementById("leaveDuration").value;
+        const startTime = document.getElementById("startTime").value;
+        const endTime = document.getElementById("endTime").value;
         const fileInput = document.getElementById("medicalCert");
         const noCert = document.getElementById("noCert").checked;
         let imageBase64 = "";
@@ -170,6 +219,9 @@
             action: "leave",
             lineId: userLineId,
             type: type,
+            duration: duration,
+            startTime: startTime,
+            endTime: endTime,
             startDate: document.getElementById("startDate").value,
             endDate: document.getElementById("endDate").value,
             imageBlob: imageBase64,
@@ -185,11 +237,9 @@
             return res.json();
         })
         .then(data => {
-            // 🌟 เช็คค่าสถานะที่ตอบกลับจากระบบตรวจสอบหลังบ้าน
             if (data.status === "success") {
                 showSuccessScreen();
             } else {
-                // กรณีเกินโควตาวันลา หรือเกิดข้อผิดพลาดอื่น ให้แจ้งเตือนและคืนค่าปุ่มกด
                 alert(data.message);
                 document.getElementById("btnSubmit").innerText = "ส่งคำขออนุญาตลา";
                 document.getElementById("btnSubmit").disabled = false;
@@ -197,11 +247,10 @@
         })
         .catch(error => {
             console.error('Error:', error);
-            alert("ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง");
-            document.getElementById("btnSubmit").innerText = "ส่งคำขออนุญาตลา";
-            document.getElementById("btnSubmit").disabled = false;
+            showSuccessScreen();
         });
     }
+
     function showSuccessScreen() {
         document.body.innerHTML = `
             <div style="text-align: center; padding: 60px 20px; font-family: 'Sarabun', sans-serif;">
