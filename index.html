@@ -185,14 +185,23 @@
             return res.json();
         })
         .then(data => {
-            showSuccessScreen();
+            // 🌟 เช็คค่าสถานะที่ตอบกลับจากระบบตรวจสอบหลังบ้าน
+            if (data.status === "success") {
+                showSuccessScreen();
+            } else {
+                // กรณีเกินโควตาวันลา หรือเกิดข้อผิดพลาดอื่น ให้แจ้งเตือนและคืนค่าปุ่มกด
+                alert(data.message);
+                document.getElementById("btnSubmit").innerText = "ส่งคำขออนุญาตลา";
+                document.getElementById("btnSubmit").disabled = false;
+            }
         })
         .catch(error => {
             console.error('Error:', error);
-            showSuccessScreen();
+            alert("ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง");
+            document.getElementById("btnSubmit").innerText = "ส่งคำขออนุญาตลา";
+            document.getElementById("btnSubmit").disabled = false;
         });
     }
-
     function showSuccessScreen() {
         document.body.innerHTML = `
             <div style="text-align: center; padding: 60px 20px; font-family: 'Sarabun', sans-serif;">
