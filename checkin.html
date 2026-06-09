@@ -10,6 +10,7 @@
     .container { background: #1e293b; padding: 40px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); max-width: 400px; width: 100%; text-align: center; border: 1px solid #334155; }
     .btn-scan { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border: none; padding: 16px 32px; font-size: 18px; font-weight: bold; border-radius: 16px; cursor: pointer; width: 100%; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4); transition: all 0.2s; margin-top: 20px; }
     .btn-scan:active { transform: scale(0.98); }
+    .btn-scan:disabled { background: #64748b; box-shadow: none; cursor: not-allowed; }
     #status-icon { font-size: 60px; margin-bottom: 10px; }
     #status-text { font-size: 16px; color: #94a3b8; margin-top: 15px; line-height: 1.6; }
   </style>
@@ -34,9 +35,11 @@
       if (!liff.isLoggedIn()) {
         liff.login();
       } else {
-        liff.getProfile().then(profile => { userLineId = profile.userId; });
+        liff.getProfile().then(profile => { 
+          userLineId = profile.userId; 
+        });
       }
-    }).catch(err => { console.error(err); });
+    }).catch(err => { console.error("LIFF Init Error: ", err); });
   });
 
   function startDoubleLockCheckIn() {
@@ -51,7 +54,7 @@
 
         document.getElementById("status-text").innerText = "พิกัดถูกต้อง... กำลังเปิดระบบกล้องสด LINE สำหรับสแกนหน้าจอค่ะ";
 
-        // รอบนี้รันบนเว็บเซิร์ฟเวอร์อิสระของ GitHub คำสั่งเปิดกล้องจะเปิดม่านชัตเตอร์ขึ้นมาทันทีครับ
+        // เปิดม่านชัตเตอร์กล้องสดสแกนข้อความ
         if (liff.scanCodeV2) {
           liff.scanCodeV2().then(result => {
             const scannedToken = result.value;
@@ -61,19 +64,18 @@
               return;
             }
 
-            document.getElementById("status-text").innerText = "กำลังส่งพิกัดและรหัสไปให้เซิร์ฟเวอร์ตรวจสอบ...";
+            document.getElementById("status-text").innerText = "กำลังประมวลผลความปลอดภัยและบันทึกเวลาลงตารางคลินิก...";
 
-            const formData = new URLSearchParams();
-            formData.append("action", "checkInFloor2");
-            formData.append("lineId", userLineId);
-            formData.append("key", scannedToken);
-            formData.append("lat", userLat);
-            formData.append("lng", userLng);
-
+            // 🚀 ปรับวิธียิงข้อมูลข้ามระบบกลับมาใช้ JSON มวลรวม เพื่อเสถียรภาพสูงสุดกับหลังบ้าน
             fetch(WEB_APP_URL, {
               method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded" },
-              body: formData.toString()
+              body: JSON.stringify({
+                action: "checkInFloor2",
+                lineId: userLineId,
+                key: scannedToken,
+                lat: userLat,
+                lng: userLng
+              })
             })
             .then(res => res.json())
             .then(resData => {
@@ -85,16 +87,16 @@
                 showError("ปฏิเสธการลงเวลา", resData.message);
               }
             })
-            .catch(err => { showError("ระบบขัดข้อง", "เซิร์ฟเวอร์ไม่ตอบรับการบันทึกเวลาค่ะ"); });
+            .catch(err => { showError("ระบบขัดข้อง", "ไม่สามารถส่งข้อมูลหาเซิร์ฟเวอร์หลักได้ค่ะ"); });
 
-          }).catch(err => { showError("กล้องขัดข้อง", "ไม่สามารถเรียกใช้กล้องสดของแอป LINE ได้ค่ะ"); });
+          }).catch(err => { showError("กล้องขัดข้อง", "ไม่สามารถเรียกใช้กล้องสดของแอป LINE ได้ค่ะ กรุณาเปิดผ่านห้องแชทไลน์"); });
         } else {
-          showError("ฟังก์ชันไม่รองรับ", "ระบบสแกนโค้ดทำงานล้มเหลว กรุณาอัปเดตแอป LINE นะคะ");
+          showError("ฟังก์ชันไม่รองรับ", "ระบบสแกนโค้ดทำงานล้มเหลว กรุณาตรวจสอบการอัปเดตแอป LINE นะคะ");
         }
 
       }, function(error) {
-         showError("สแกนไม่สำเร็จ", "🔒 ระบบบังคับให้แชร์พิกัดพิกัด GPS เพื่อยืนยันว่าคุณสแกนอยู่ที่คลินิกจริงค่ะ กรุณาเปิดสิทธิ์ GPS บนมือถือนะค");
-      }, { enableHighAccuracy: true });
+         showError("สแกนไม่สำเร็จ", "🔒 ระบบบังคับให้แชร์พิกัดพิกัด GPS เพื่อยืนยันตัวตนว่าคุณอยู่ที่คลินิกจริงค่ะ กรุณาตั้งค่าอนุญาตสิทธิ์ตำแหน่งที่ตั้งให้กับแอป LINE บนมือถือนะคะ");
+      }, { enableHighAccuracy: true, timeout: 10000 });
     } else {
       showError("ระบบไม่รองรับ GPS", "มือถือของคุณไม่สนับสนุนระบบจับพิกัดความปลอดภัยค่ะ");
     }
