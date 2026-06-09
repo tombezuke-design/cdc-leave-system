@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CDC Floor 2 - Automatic Check-In</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body { font-family: 'Prompt', Arial, sans-serif; background-color: #f1f5f9; padding: 20px; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .container { background: #ffffff; padding: 40px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 400px; width: 100%; text-align: center; }
+    .loading-dots { font-size: 18px; color: #0ea5e9; font-weight: bold; margin-top: 15px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div id="status-icon" style="font-size: 50px;">⏳</div>
+  <div id="status-text" class="loading-dots">กำลังยืนยันตัวตนและบันทึกเวลา...</div>
+</div>
+
+<script>
+  // 🌟 ใส่รหัสเดิมของคุณหมอตรงนี้
+  const LIFF_ID = "2010085241-Szu0Ekco"; 
+  const WEB_APP_URL = "https://script.google.com/macros/s/ใส่_WEB_APP_URL_ของคุณหมอ/exec";
+
+  document.addEventListener("DOMContentLoaded", function() {
+    // 1. ตรวจจับข้อมูลที่พนักงานสแกนมาจากกล้อง LINE โดยตรง 
+    // พนักงานใช้กล้อง LINE สแกนลิงก์แอปลิฟฟ์พ่วงรหัสนาที (เช่น liff.line.me/xxxx?key=cdc-2026-06-09-14-40)
+    const urlParams = new URLSearchParams(window.location.search);
+    const scannedKey = urlParams.get('key'); 
+
+    if (!scannedKey) {
+      document.getElementById("status-icon").innerText = "❌";
+      document.getElementById("status-text").innerText = "รูปแบบคิวอาร์โค้ดไม่ถูกต้อง กรุณาสแกนจากจอคอมชั้น 2 ค่ะ";
+      return;
+    }
+
+    // 2. สตาร์ทระบบเข้าใช้สิทธิ์ LINE เพื่อดึง Line ID คนสแกนแบบออโต้
+    liff.init({ liffId: LIFF_ID }).then(() => {
+      if (!liff.isLoggedIn()) {
+        liff.login();
+      } else {
+        // ดึงโปรไฟล์พนักงานผู้ยืนสแกนหน้างานจริง
+        liff.getProfile().then(profile => {
+          
+          // 3. ยิงข้อมูลรหัสประจำนาที + Line ID ส่งตรงไปตรวจที่หลังบ้าน (gs.js) ทันทีโดยพนักงานไม่ต้องกดอะไรเพิ่ม
+          fetch(WEB_APP_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "checkInFloor2",
+              lineId: profile.userId,
+              key: scannedKey
+            })
+          });
+
+          // บันทึกสำเร็จ เปลี่ยนสถานะหน้าจอให้พนักงานสบายใจแล้วปิดแอปได้เลย
+          document.getElementById("status-icon").innerText = "✅";
+          document.getElementById("status-text").innerHTML = `<span style="color:#10b981;">บันทึกสำเร็จ!</span><br><span style="font-size:14px; color:#64748b;">ระบบได้รับเวลาเข้างานชั้น 2 เรียบร้อยแล้วค่ะ</span>`;
+          
+          // ปิดหน้าต่างแอปออโต้ใน 3 วินาที
+          setTimeout(() => { liff.closeWindow(); }, 3000);
+
+        }).catch(err => { alert("ดึงโปรไฟล์ล้มเหลว: " + err.message); });
+      }
+    }).catch(err => { console.error(err); });
+  });
+</script>
+
+</body>
+</html>
