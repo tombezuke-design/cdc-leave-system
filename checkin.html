@@ -3,70 +3,109 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CDC Floor 2 - Automatic Check-In</title>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <title>CDC Floor 2 - Double Lock Check-In</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
-    body { font-family: 'Prompt', Arial, sans-serif; background-color: #f1f5f9; padding: 20px; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .container { background: #ffffff; padding: 40px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 400px; width: 100%; text-align: center; }
-    .loading-dots { font-size: 18px; color: #0ea5e9; font-weight: bold; margin-top: 15px; }
+    body { font-family: Arial, sans-serif; background-color: #0f172a; padding: 20px; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; color: #f8fafc; }
+    .container { background: #1e293b; padding: 40px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); max-width: 400px; width: 100%; text-align: center; border: 1px solid #334155; }
+    .btn-scan { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border: none; padding: 16px 32px; font-size: 18px; font-weight: bold; border-radius: 16px; cursor: pointer; width: 100%; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4); transition: all 0.2s; margin-top: 20px; }
+    .btn-scan:active { transform: scale(0.98); }
+    #status-icon { font-size: 60px; margin-bottom: 10px; }
+    #status-text { font-size: 16px; color: #94a3b8; margin-top: 15px; line-height: 1.6; }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <div id="status-icon" style="font-size: 50px;">⏳</div>
-  <div id="status-text" class="loading-dots">กำลังยืนยันตัวตนและบันทึกเวลา...</div>
+  <div id="status-icon">🛡️</div>
+  <h2>ระบบลงเวลาเข้างานชั้น 2</h2>
+  <div id="status-text">กรุณากดปุ่มด้านล่างเพื่อทำการเปิดกล้องสดสแกน QR Code หน้าจอคอมพิวเตอร์ชั้น 2 ค่ะ</div>
+  
+  <button class="btn-scan" id="btn-action" onclick="startDoubleLockCheckIn()">📷 เปิดกล้องสแกนเข้างาน</button>
 </div>
 
 <script>
-  // 🌟 ใส่รหัสเดิมของคุณหมอตรงนี้
-  const LIFF_ID = "2010085241-Szu0Ekco"; 
+  const LIFF_ID = "2010347619-Qjw2Te8d"; 
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz_uSutN2ss-bFu0MqV6y4XMurvVojDIfTIEshkut1_QngDkDYnu0jQkgGMjcNcumq2/exec";
+  let userLineId = "";
 
   document.addEventListener("DOMContentLoaded", function() {
-    // 1. ตรวจจับข้อมูลที่พนักงานสแกนมาจากกล้อง LINE โดยตรง 
-    // พนักงานใช้กล้อง LINE สแกนลิงก์แอปลิฟฟ์พ่วงรหัสนาที (เช่น liff.line.me/xxxx?key=cdc-2026-06-09-14-40)
-    const urlParams = new URLSearchParams(window.location.search);
-    const scannedKey = urlParams.get('key'); 
-
-    if (!scannedKey) {
-      document.getElementById("status-icon").innerText = "❌";
-      document.getElementById("status-text").innerText = "รูปแบบคิวอาร์โค้ดไม่ถูกต้อง กรุณาสแกนจากจอคอมชั้น 2 ค่ะ";
-      return;
-    }
-
-    // 2. สตาร์ทระบบเข้าใช้สิทธิ์ LINE เพื่อดึง Line ID คนสแกนแบบออโต้
     liff.init({ liffId: LIFF_ID }).then(() => {
       if (!liff.isLoggedIn()) {
         liff.login();
       } else {
-        // ดึงโปรไฟล์พนักงานผู้ยืนสแกนหน้างานจริง
-        liff.getProfile().then(profile => {
-          
-          // 3. ยิงข้อมูลรหัสประจำนาที + Line ID ส่งตรงไปตรวจที่หลังบ้าน (gs.js) ทันทีโดยพนักงานไม่ต้องกดอะไรเพิ่ม
-          fetch(WEB_APP_URL, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "checkInFloor2",
-              lineId: profile.userId,
-              key: scannedKey
-            })
-          });
-
-          // บันทึกสำเร็จ เปลี่ยนสถานะหน้าจอให้พนักงานสบายใจแล้วปิดแอปได้เลย
-          document.getElementById("status-icon").innerText = "✅";
-          document.getElementById("status-text").innerHTML = `<span style="color:#10b981;">บันทึกสำเร็จ!</span><br><span style="font-size:14px; color:#64748b;">ระบบได้รับเวลาเข้างานชั้น 2 เรียบร้อยแล้วค่ะ</span>`;
-          
-          // ปิดหน้าต่างแอปออโต้ใน 3 วินาที
-          setTimeout(() => { liff.closeWindow(); }, 3000);
-
-        }).catch(err => { alert("ดึงโปรไฟล์ล้มเหลว: " + err.message); });
+        liff.getProfile().then(profile => { userLineId = profile.userId; });
       }
     }).catch(err => { console.error(err); });
   });
+
+  function startDoubleLockCheckIn() {
+    document.getElementById("btn-action").disabled = true;
+    document.getElementById("status-icon").innerText = "⏳";
+    document.getElementById("status-text").innerText = "กำลังเรียกขอตำแหน่งพิกัด GPS ความปลอดภัย...";
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function(position) {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+
+        document.getElementById("status-text").innerText = "พิกัดถูกต้อง... กำลังเปิดระบบกล้องสด LINE สำหรับสแกนหน้าจอค่ะ";
+
+        // รอบนี้รันบนเว็บเซิร์ฟเวอร์อิสระของ GitHub คำสั่งเปิดกล้องจะเปิดม่านชัตเตอร์ขึ้นมาทันทีครับ
+        if (liff.scanCodeV2) {
+          liff.scanCodeV2().then(result => {
+            const scannedToken = result.value;
+            
+            if(!scannedToken) {
+              showError("ยกเลิกการสแกน", "คุณไม่ได้ทำการสแกนรหัสผ่านหน้าจอคอมพิวเตอร์ค่ะ");
+              return;
+            }
+
+            document.getElementById("status-text").innerText = "กำลังส่งพิกัดและรหัสไปให้เซิร์ฟเวอร์ตรวจสอบ...";
+
+            const formData = new URLSearchParams();
+            formData.append("action", "checkInFloor2");
+            formData.append("lineId", userLineId);
+            formData.append("key", scannedToken);
+            formData.append("lat", userLat);
+            formData.append("lng", userLng);
+
+            fetch(WEB_APP_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: formData.toString()
+            })
+            .then(res => res.json())
+            .then(resData => {
+              if (resData.status === "success") {
+                document.getElementById("status-icon").innerText = "✅";
+                document.getElementById("status-text").innerHTML = `<span style="color:#34d399; font-size:22px; font-weight:bold;">บันทึกสำเร็จ!</span><br>${resData.message}`;
+                setTimeout(() => { liff.closeWindow(); }, 3500);
+              } else {
+                showError("ปฏิเสธการลงเวลา", resData.message);
+              }
+            })
+            .catch(err => { showError("ระบบขัดข้อง", "เซิร์ฟเวอร์ไม่ตอบรับการบันทึกเวลาค่ะ"); });
+
+          }).catch(err => { showError("กล้องขัดข้อง", "ไม่สามารถเรียกใช้กล้องสดของแอป LINE ได้ค่ะ"); });
+        } else {
+          showError("ฟังก์ชันไม่รองรับ", "ระบบสแกนโค้ดทำงานล้มเหลว กรุณาอัปเดตแอป LINE นะคะ");
+        }
+
+      }, function(error) {
+         showError("สแกนไม่สำเร็จ", "🔒 ระบบบังคับให้แชร์พิกัดพิกัด GPS เพื่อยืนยันว่าคุณสแกนอยู่ที่คลินิกจริงค่ะ กรุณาเปิดสิทธิ์ GPS บนมือถือนะค");
+      }, { enableHighAccuracy: true });
+    } else {
+      showError("ระบบไม่รองรับ GPS", "มือถือของคุณไม่สนับสนุนระบบจับพิกัดความปลอดภัยค่ะ");
+    }
+  }
+
+  function showError(title, msg) {
+    document.getElementById("status-icon").innerText = "❌";
+    document.getElementById("status-text").innerHTML = `<span style="color:#f43f5e; font-size:21px; font-weight:bold;">${title}</span><br>${msg}`;
+    document.getElementById("btn-action").disabled = false;
+    document.getElementById("btn-action").innerText = "📷 ลองเปิดกล้องสแกนอีกครั้ง";
+  }
 </script>
 
 </body>
