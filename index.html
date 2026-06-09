@@ -98,9 +98,31 @@
             liff.login();
             return;
         }
-
+        // 1. แกะค่าจาก URL พนักงานสแกน (แทรกต่อจากจุดเดิมของคุณหมอ)
         const urlParams = new URLSearchParams(window.location.search);
         const action = urlParams.get('action');
+        const qrKey = urlParams.get('key');
+
+    // 🚨 [เพิ่มใหม่] แยกเลนดักจับ: ถ้าเป็นการสแกนคิวอาร์โค้ดเช็คอินชั้น 2
+        if (action === "checkinPage" && qrKey) {
+          document.getElementById("loading").innerText = "⏳ กำลังตรวจสอบสิทธิ์และลงเวลาเข้างานชั้น 2...";
+      
+      // ดึงข้อมูลโปรไฟล์เพื่อเอา Line ID
+          const profile = await liff.getProfile();
+          const userId = profile.userId;
+
+      // ยิงตรงไปบันทึกที่ Google Apps Script หลังบ้าน
+          await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'checkInCheck', lineId: userId, key: qrKey })
+          });
+
+          alert("🎉 ระบบได้รับข้อมูลการสแกนเข้างานชั้น 2 เรียบร้อยแล้วค่ะ!");
+          liff.closeWindow();
+          return;
+    }
         if (action === 'approve' || action === 'reject') {
             document.getElementById("loading").innerText = "กำลังบันทึกการอนุมัติ...";
             await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: action, rowId: urlParams.get('rowId'), userId: urlParams.get('userId') }) });
