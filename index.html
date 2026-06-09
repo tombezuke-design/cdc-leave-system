@@ -103,25 +103,51 @@
         const action = urlParams.get('action');
         const qrKey = urlParams.get('key');
 
-    // 🚨 [เพิ่มใหม่] แยกเลนดักจับ: ถ้าเป็นการสแกนคิวอาร์โค้ดเช็คอินชั้น 2
-        if (action === "checkinPage" && qrKey) {
-          document.getElementById("loading").innerText = "⏳ กำลังตรวจสอบสิทธิ์และลงเวลาเข้างานชั้น 2...";
-      
-      // ดึงข้อมูลโปรไฟล์เพื่อเอา Line ID
-          const profile = await liff.getProfile();
-          const userId = profile.userId;
+   // 🚨 [แก้ไขใหม่] ท่อนดักจับเมื่อพนักงานสแกนคิวอาร์เข้างานชั้น 2
+    if (action === "checkinPage" && qrKey) {
+        document.getElementById("loading").innerText = "⏳ กำลังตรวจสอบสิทธิ์และลงเวลาเข้างานชั้น 2...";
+        
+        try {
+            const profile = await liff.getProfile();
+            const userId = profile.userId;
 
-      // ยิงตรงไปบันทึกที่ Google Apps Script หลังบ้าน
-          await fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'checkInCheck', lineId: userId, key: qrKey })
-          });
+            // ส่งข้อมูลเช็คอินไปให้หลังบ้านตรวจสอบรหัสเวลา 15 วินาที
+            const response = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' }, // ใช้ text/plain เพื่อเลี่ยงปัญหา CORS บนมือถือบางเครื่อง
+                body: JSON.stringify({ action: 'checkInCheck', lineId: userId, key: qrKey })
+            });
 
-          alert("🎉 ระบบได้รับข้อมูลการสแกนเข้างานชั้น 2 เรียบร้อยแล้วค่ะ!");
-          liff.closeWindow();
-          return;
+            const result = await response.json();
+
+            // คัดแยกสิทธิ์การแจ้งเตือนตามผลลัพธ์ที่กูเกิลตอบกลับมาจริง
+            if (result.status === "success") {
+                // 🟢 เคสสแกนทันเวลา 15 วินาทีสำเร็จ
+                alert("🎉 " + result.message);
+                liff.closeWindow();
+            } 
+            else if (result.status === "invalid_key") {
+                // 🔴 เคสที่โค้ดหมดอายุ (สแกนช้าหรือใช้ภาพแคปจอ)
+                alert(result.message);
+                // ไม่สั่งปิดหน้าจอ เพื่อให้พนักงานรู้ตัวว่าต้องเดินไปสแกนใหม่ที่หน้าจอคอม
+            } 
+            else if (result.status === "not_found") {
+                // 🟡 เคสพนักงานใหม่ที่ไม่มีชื่อในแท็บ Employees
+                alert("👋 ไม่พบรายชื่อพนักงานในระบบ กำลังพาวาร์ปไปหน้าลงทะเบียนนะคะ");
+                document.getElementById("loading").classList.add("hidden");
+                document.getElementById("registerForm").classList.remove("hidden");
+            } 
+            else {
+                alert("🚨 เกิดข้อผิดพลาด: " + result.message);
+                liff.closeWindow();
+            }
+
+        } catch (err) {
+            console.error('Error CheckIn:', err);
+            alert("❌ ระบบขัดข้อง: " + err.message + "\nกรุณาลองใหมู่อีกครั้งหรือเช็คสิทธิ์ Deploy หลังบ้านครับ");
+            liff.closeWindow();
+        }
+        return;
     }
         if (action === 'approve' || action === 'reject') {
             document.getElementById("loading").innerText = "กำลังบันทึกการอนุมัติ...";
