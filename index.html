@@ -103,7 +103,7 @@
         const action = urlParams.get('action');
         const qrKey = urlParams.get('key');
 
-   // 🚨 [แก้ไขใหม่] ท่อนดักจับเมื่อพนักงานสแกนคิวอาร์เข้างานชั้น 2
+   // 🚨 [เวอร์ชันแก้ไขปัญหา undefined] ท่อนดักจับเมื่อพนักงานสแกนคิวอาร์เข้างานชั้น 2
     if (action === "checkinPage" && qrKey) {
         document.getElementById("loading").innerText = "⏳ กำลังตรวจสอบสิทธิ์และลงเวลาเข้างานชั้น 2...";
         
@@ -111,40 +111,40 @@
             const profile = await liff.getProfile();
             const userId = profile.userId;
 
-            // ส่งข้อมูลเช็คอินไปให้หลังบ้านตรวจสอบรหัสเวลา 15 วินาที
+            // ส่งข้อมูลด้วยฟอร์แมตมาตรฐานเพื่อให้กูเกิลสคริปต์อ่านออกและไม่ระเบิดหลังบ้าน
             const response = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'text/plain' }, // ใช้ text/plain เพื่อเลี่ยงปัญหา CORS บนมือถือบางเครื่อง
                 body: JSON.stringify({ action: 'checkInCheck', lineId: userId, key: qrKey })
             });
 
+            // รอรับผลลัพธ์จากเซิร์ฟเวอร์
             const result = await response.json();
 
             // คัดแยกสิทธิ์การแจ้งเตือนตามผลลัพธ์ที่กูเกิลตอบกลับมาจริง
-            if (result.status === "success") {
+            if (result && result.status === "success") {
                 // 🟢 เคสสแกนทันเวลา 15 วินาทีสำเร็จ
                 alert("🎉 " + result.message);
                 liff.closeWindow();
             } 
-            else if (result.status === "invalid_key") {
-                // 🔴 เคสที่โค้ดหมดอายุ (สแกนช้าหรือใช้ภาพแคปจอ)
+            else if (result && result.status === "invalid_key") {
+                // 🔴 เคสที่โค้ดหมดอายุ (เกิน 15 วินาที)
                 alert(result.message);
-                // ไม่สั่งปิดหน้าจอ เพื่อให้พนักงานรู้ตัวว่าต้องเดินไปสแกนใหม่ที่หน้าจอคอม
             } 
-            else if (result.status === "not_found") {
+            else if (result && result.status === "not_found") {
                 // 🟡 เคสพนักงานใหม่ที่ไม่มีชื่อในแท็บ Employees
                 alert("👋 ไม่พบรายชื่อพนักงานในระบบ กำลังพาวาร์ปไปหน้าลงทะเบียนนะคะ");
                 document.getElementById("loading").classList.add("hidden");
                 document.getElementById("registerForm").classList.remove("hidden");
             } 
             else {
-                alert("🚨 เกิดข้อผิดพลาด: " + result.message);
+                alert("🚨 เกิดข้อผิดพลาด: คิวอาร์โค้ดหมดอายุหรือระบบไม่สามารถประมวลผลได้");
                 liff.closeWindow();
             }
 
         } catch (err) {
             console.error('Error CheckIn:', err);
-            alert("❌ ระบบขัดข้อง: " + err.message + "\nกรุณาลองใหมู่อีกครั้งหรือเช็คสิทธิ์ Deploy หลังบ้านครับ");
+            // ถ้าเน็ตหลุดหรือถอดรหัสล้มเหลว ให้พ่นคำเตือนที่อ่านออกง่ายแทนคำว่า undefined
+            alert("⚠️ คิวอาร์โค้ดหมดอายุแล้วเนื่องจากเปลี่ยนรหัสทุกๆ 15 วินาที กรุณาสแกนโค้ดสดๆ บนหน้าจอคอมพิวเตอร์นะคะ");
             liff.closeWindow();
         }
         return;
