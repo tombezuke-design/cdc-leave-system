@@ -246,7 +246,7 @@
             
             // 🌟 เงื่อนไขพิเศษ: ถ้าเป็น "ลาป่วย" และถูกอนุมัติแล้ว แต่ในชีตหลังบ้านแจ้งว่า "ไม่มีใบรับรองแพทย์" (hasCert เป็น false)
             // จะแถมปุ่ม "ส่งใบรับรองแพทย์เพิ่ม" เด้งพ่วงขึ้นมาให้พนักงานกดส่งย้อนหลังได้ด้วย
-            if (item.type === "ลาป่วย" && item.status === "อนุมัติ" && item.hasCert === false) {
+            if (item.type === "ลาป่วย" && item.status === "อนุมัติแล้ว" && item.hasCert === false) {
                 btnHtml += `<button class="btn-upload-more" onclick="openUploadModal('${item.rowId}')">📑 ส่งใบรับรองแพทย์เพิ่ม</button>`;
             }
 
