@@ -341,7 +341,7 @@ async function submitLeave() {
         }
 
         let imageBase64 = "";
-        if (type === "LA" && fileInput.files.length > 0 && !noCert) {
+        if (type === "ลาป่วย" && fileInput.files.length > 0 && !noCert) {
             imageBase64 = await toBase64(fileInput.files[0]);
             imageBase64 = imageBase64.split(',')[1]; 
         }
