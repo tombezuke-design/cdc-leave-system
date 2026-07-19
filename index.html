@@ -7,81 +7,104 @@
     let isSubmitting = false; 
 
     async function main() {
-        await liff.init({ liffId: LIFF_ID });
-        if (!liff.isLoggedIn()) {
-            liff.login();
-            return;
-        }
-        const urlParams = new URLSearchParams(window.location.search);
-        const action = urlParams.get('action');
-        const qrKey = urlParams.get('key');
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+    }
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+    const qrKey = urlParams.get('key');
 
-        if (action === "checkinPage" && qrKey) {
-            document.getElementById("loading").innerText = "⏳ กำลังตรวจสอบสิทธิ์และลงเวลาเข้างานชั้น 2....";
-            
-            liff.getProfile().then(profile => {
-                const userId = profile.userId;
+    if (action === "checkinPage" && qrKey) {
+        document.getElementById("loading").innerText = "⏳ กำลังตรวจสอบสิทธิ์และลงเวลาเข้างานชั้น 2....";
+        
+        liff.getProfile().then(profile => {
+            const userId = profile.userId;
 
-                fetch(GOOGLE_SCRIPT_URL, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ action: 'checkInCheck', lineId: userId, key: qrKey }) 
-                })
-                .then(res => res.json())
-                .then(result => {
-                    if (result && result.status === "success") {
-                        alert("🎉 " + result.message);
-                        liff.closeWindow();
-                    } 
-                    else if (result && result.status === "invalid_key") {
-                        alert(result.message);
-                    } 
-                    else if (result && result.status === "not_found") {
-                        alert("👋 ไม่พบรายชื่อพนักงานในระบบ กำลังพาวาร์ปไปหน้าลงทะเบียนนะคะ");
-                        document.getElementById("loading").classList.add("hidden");
-                        document.getElementById("registerForm").classList.remove("hidden");
-                    } 
-                    else {
-                        alert("🚨 แจ้งเตือนจากระบบ: " + (result.message || "ไม่สามารถทำรายการได้"));
-                        liff.closeWindow();
-                    }
-                    
-                }).catch(err => {
-                    console.error(err);
-                    alert("❌ ระบบขัดข้อง: " + err.message);
-                });
+            // 🟢 ปรับส่งแบบ FormData เพื่อแก้ปัญหา LINE บล็อก CORS
+            const formData = new URLSearchParams();
+            formData.append("jsonData", JSON.stringify({ action: 'checkInCheck', lineId: userId, key: qrKey }));
 
+            fetch(GOOGLE_SCRIPT_URL, { 
+                method: 'POST', 
+                body: formData,
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            })
+            .then(res => res.json())
+            .then(result => {
+                if (result && result.status === "success") {
+                    alert("🎉 " + result.message);
+                    liff.closeWindow();
+                } 
+                else if (result && result.status === "invalid_key") {
+                    alert(result.message);
+                } 
+                else if (result && result.status === "not_found") {
+                    alert("👋 ไม่พบรายชื่อพนักงานในระบบ กำลังพาวาร์ปไปหน้าลงทะเบียนนะคะ");
+                    document.getElementById("loading").classList.add("hidden");
+                    document.getElementById("registerForm").classList.remove("hidden");
+                } 
+                else {
+                    alert("🚨 แจ้งเตือนจากระบบ: " + (result.message || "ไม่สามารถทำรายการได้"));
+                    liff.closeWindow();
+                }
             }).catch(err => {
                 console.error(err);
-                alert("❌ ไม่สามารถดึงโปรไฟล์จาก LINE ได้");
+                alert("❌ ระบบขัดข้อง: " + err.message);
             });
-            
-            return;
-        }
-        if (action === 'approve' || action === 'reject') {
-            document.getElementById("loading").innerText = "กำลังบันทึกการอนุมัติ...";
-            await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: action, rowId: urlParams.get('rowId'), userId: urlParams.get('userId') }) });
-            alert("ดำเนินการเรียบร้อยแล้ว");
-            liff.closeWindow();
-        } else {
-            userLineId = (await liff.getProfile()).userId;
-            checkUser(userLineId);
-        }
-    }
 
-    function checkUser(lineId) {
-        fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: "checkUser", lineId: lineId }) })
-        .then(res => res.json()).then(data => {
-            document.getElementById("loading").classList.add("hidden");
-            if (data.status === "new_user") {
-                document.getElementById("registerForm").classList.remove("hidden");
-            } else {
-                document.getElementById("greeting").innerText = "สวัสดีคุณ " + data.name;
-                document.getElementById("leaveForm").classList.remove("hidden");
-                renderHistory(data.history);
-            }
+        }).catch(err => {
+            console.error(err);
+            alert("❌ ไม่สามารถดึงโปรไฟล์จาก LINE ได้");
         });
+        
+        return;
     }
+    
+    if (action === 'approve' || action === 'reject') {
+        document.getElementById("loading").innerText = "กำลังบันทึกการอนุมัติ...";
+        
+        const formData = new URLSearchParams();
+        formData.append("jsonData", JSON.stringify({ action: action, rowId: urlParams.get('rowId'), userId: urlParams.get('userId') }));
 
+        await fetch(GOOGLE_SCRIPT_URL, { 
+            method: 'POST', 
+            body: formData,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        alert("ดำเนินการเรียบร้อยแล้ว");
+        liff.closeWindow();
+    } else {
+        userLineId = (await liff.getProfile()).userId;
+        checkUser(userLineId);
+    }
+}
+
+function checkUser(lineId) {
+    // 🟢 ปรับส่งแบบ FormData เพื่อแก้ปัญหา LINE บล็อก CORS สำหรับหน้าโหลดประวัติแจ้งลาปกติ
+    const formData = new URLSearchParams();
+    formData.append("jsonData", JSON.stringify({ action: "checkUser", lineId: lineId }));
+
+    fetch(GOOGLE_SCRIPT_URL, { 
+        method: 'POST', 
+        body: formData,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    .then(res => res.json()).then(data => {
+        document.getElementById("loading").classList.add("hidden");
+        if (data.status === "new_user") {
+            document.getElementById("registerForm").classList.remove("hidden");
+        } else {
+            document.getElementById("greeting").innerText = "สวัสดีคุณ " + data.name;
+            document.getElementById("leaveForm").classList.remove("hidden");
+            renderHistory(data.history);
+        }
+    }).catch(err => {
+        console.error(err);
+        alert("❌ โหลดข้อมูลไม่สำเร็จ: " + err.message);
+    });
+}
     function toggleCertUI() {
         const type = document.getElementById("leaveType").value;
         const certSection = document.getElementById("certSection");
