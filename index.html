@@ -1,114 +1,11 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบลางาน CDC</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        body { font-family: 'Sarabun', sans-serif; background-color: #f4f6f9; padding: 15px; }
-        .container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h2, h3 { text-align: center; color: #333; margin-bottom: 10px; }
-        label { font-weight: bold; margin-top: 10px; display: block; font-size: 14px; }
-        input, select, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
-        .btn-main { background-color: #00B900; color: white; border: none; font-size: 16px; font-weight: bold; margin-top: 20px; cursor: pointer; }
-        .btn-cancel { background-color: #ff4d4f; color: white; padding: 6px; font-size: 12px; margin-top: 5px; width: auto; display: inline-block; border: none; cursor: pointer; }
-        .btn-upload-more { background-color: #0284c7; color: white; padding: 6px; font-size: 12px; margin-top: 5px; margin-left: 5px; width: auto; display: inline-block; border: none; border-radius: 5px; cursor: pointer; }
-        .hidden { display: none; }
-        .history-card { border: 1px solid #eee; padding: 10px; margin-top: 10px; border-radius: 6px; background: #fafafa; font-size: 14px; }
-        .status-badge { font-weight: bold; color: #0056b3; }
-        #loading { text-align: center; color: #666; font-weight: bold; }
-        
-        /* 🌟 สไตล์สำหรับหน้าต่าง Pop-up ส่งใบรับรองแพทย์เพิ่มเติม */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
-        .modal-content { background-color: white; margin: 20% auto; padding: 20px; border-radius: 10px; max-width: 340px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-        .btn-close-modal { background-color: #64748b; color: white; border: none; border-radius: 5px; padding: 10px; margin-top: 5px; cursor: pointer; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <div id="loading">กำลังโหลดข้อมูล...</div>
-
-    <div id="registerForm" class="hidden">
-        <h2>ลงทะเบียนใช้งานครั้งแรก</h2>
-        <label>ชื่อ-นามสกุล:</label>
-        <input type="text" id="empName" placeholder="เช่น สมชาย ใจดี">
-        <label>เลขบัตรประชาชน:</label>
-        <input type="text" id="idCard" placeholder="13 หลัก">
-        <label>เบอร์ติดต่อ:</label>
-        <input type="text" id="phone" placeholder="08xxxxxxxx">
-        <button class="btn-main" onclick="submitRegister()">ลงทะเบียน</button>
-    </div>
-
-    <div id="leaveForm" class="hidden">
-        <h2 id="greeting" style="color:#00B900;">แจ้งลางาน</h2>
-        <label>ประเภทการลา:</label>
-        <select id="leaveType" onchange="toggleCertUI()">
-            <option value="ลากิจ">ลากิจ</option>
-            <option value="ลาป่วย">ลาป่วย</option>
-            <option value="ลาพักร้อน">ลาพักร้อน</option>
-        </select>
-        
-        <label id="durationLabel">รูปแบบเวลาที่ลา:</label>
-        <select id="leaveDuration" onchange="toggleTimeUI()">
-            <option value="เต็มวัน">เต็มวัน (Full Day)</option>
-            <option value="ระบุเวลา">ระบุเวลา (ออกไปทำธุระชั่วคราว)</option>
-        </select>
-
-        <div id="timePickerSection" class="hidden" style="background:#f9f9f9; padding:10px; border:1px dashed #ccc; margin-top:10px;">
-            <div style="display: flex; gap: 10px;">
-                <div style="flex: 1;">
-                    <label style="margin-top:0;">เวลาเริ่ม:</label>
-                    <input type="time" id="startTime" value="09:00">
-                </div>
-                <div style="flex: 1;">
-                    <label style="margin-top:0;">เวลาสิ้นสุด:</label>
-                    <input type="time" id="endTime" value="12:00">
-                </div>
-            </div>
-        </div>
-        
-        <label>เริ่มวันที่:</label>
-        <input type="date" id="startDate">
-        <label>ถึงวันที่:</label>
-        <input type="date" id="endDate">
-
-        <div id="certSection" class="hidden" style="background:#f9f9f9; padding:10px; border:1px dashed #ccc; margin-top:10px;">
-            <label style="margin-top:0;">แนบรูปใบรับรองแพทย์:</label>
-            <input type="file" id="medicalCert" accept="image/*">
-            <div style="margin-top:10px;">
-                <input type="checkbox" id="noCert" style="width: auto;" onchange="document.getElementById('medicalCert').disabled = this.checked;"> 
-                <span style="font-size: 14px;">ไม่มีใบรับรองแพทย์</span>
-            </div>
-        </div>
-
-        <button class="btn-main" id="btnSubmit" onclick="submitLeave()">ส่งคำขออนุญาตลา</button>
-        <hr style="margin-top: 25px; border: 0; border-top: 1px solid #ddd;">
-    </div>
-
-    <div id="historySection" class="hidden">
-        <h3>ประวัติการลาของคุณ</h3>
-        <div id="historyList"></div>
-    </div>
-</div>
-
-<div id="uploadCertModal" class="modal">
-    <div class="modal-content">
-        <h3 style="color:#0284c7; margin-top:0;">📑 ยื่นใบรับรองแพทย์เพิ่ม</h3>
-        <p style="font-size:13px; color:#666; text-align:center;">อัปโหลดหลักฐานสำหรับใบลาป่วยย้อนหลัง</p>
-        <input type="hidden" id="targetRowId">
-        <label>เลือกรูปภาพใบรับรองแพทย์:</label>
-        <input type="file" id="additionalCertFile" accept="image/*">
-        <button class="btn-main" id="btnSubmitAdditional" onclick="submitAdditionalCert()" style="background-color:#0284c7; margin-top:15px;">ส่งเอกสารให้ผู้บริหาร</button>
-        <button class="btn-close-modal" onclick="closeUploadModal()">ปิดหน้าต่าง</button>
-    </div>
-</div>
-
+<!-- คัดลอกเฉพาะส่วน <script> นี้ไปวางทับอันเดิมได้เลยครับ -->
 <script>
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby_f4scSCraJvRoc8pMbUgfEUOVUs5efLhe-cUh2lNTRKsL0IJ_xHm_42Y6MpC11G_d/exec"; 
     const LIFF_ID = "2010085241-Szu0Ekco";
     let userLineId = "";
+    
+    // 🌟 เพิ่มตัวแปร Flag ป้องกันการส่งข้อมูลซ้อนกันระดับระดับแอปพลิเคชัน
+    let isSubmitting = false; 
 
     async function main() {
         await liff.init({ liffId: LIFF_ID });
@@ -120,47 +17,47 @@
         const action = urlParams.get('action');
         const qrKey = urlParams.get('key');
 
-    if (action === "checkinPage" && qrKey) {
-        document.getElementById("loading").innerText = "⏳ กำลังตรวจสอบสิทธิ์และลงเวลาเข้างานชั้น 2....";
-        
-        liff.getProfile().then(profile => {
-            const userId = profile.userId;
+        if (action === "checkinPage" && qrKey) {
+            document.getElementById("loading").innerText = "⏳ กำลังตรวจสอบสิทธิ์และลงเวลาเข้างานชั้น 2....";
+            
+            liff.getProfile().then(profile => {
+                const userId = profile.userId;
 
-            fetch(GOOGLE_SCRIPT_URL, { 
-                method: 'POST', 
-                body: JSON.stringify({ action: 'checkInCheck', lineId: userId, key: qrKey }) 
-            })
-            .then(res => res.json())
-            .then(result => {
-                if (result && result.status === "success") {
-                    alert("🎉 " + result.message);
-                    liff.closeWindow();
-                } 
-                else if (result && result.status === "invalid_key") {
-                    alert(result.message);
-                } 
-                else if (result && result.status === "not_found") {
-                    alert("👋 ไม่พบรายชื่อพนักงานในระบบ กำลังพาวาร์ปไปหน้าลงทะเบียนนะคะ");
-                    document.getElementById("loading").classList.add("hidden");
-                    document.getElementById("registerForm").classList.remove("hidden");
-                } 
-                else {
-                    alert("🚨 แจ้งเตือนจากระบบ: " + (result.message || "ไม่สามารถทำรายการได้"));
-                    liff.closeWindow();
-                }
-                
+                fetch(GOOGLE_SCRIPT_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ action: 'checkInCheck', lineId: userId, key: qrKey }) 
+                })
+                .then(res => res.json())
+                .then(result => {
+                    if (result && result.status === "success") {
+                        alert("🎉 " + result.message);
+                        liff.closeWindow();
+                    } 
+                    else if (result && result.status === "invalid_key") {
+                        alert(result.message);
+                    } 
+                    else if (result && result.status === "not_found") {
+                        alert("👋 ไม่พบรายชื่อพนักงานในระบบ กำลังพาวาร์ปไปหน้าลงทะเบียนนะคะ");
+                        document.getElementById("loading").classList.add("hidden");
+                        document.getElementById("registerForm").classList.remove("hidden");
+                    } 
+                    else {
+                        alert("🚨 แจ้งเตือนจากระบบ: " + (result.message || "ไม่สามารถทำรายการได้"));
+                        liff.closeWindow();
+                    }
+                    
+                }).catch(err => {
+                    console.error(err);
+                    alert("❌ ระบบขัดข้อง: " + err.message);
+                });
+
             }).catch(err => {
                 console.error(err);
-                alert("❌ ระบบขัดข้อง: " + err.message);
+                alert("❌ ไม่สามารถดึงโปรไฟล์จาก LINE ได้");
             });
-
-        }).catch(err => {
-            console.error(err);
-            alert("❌ ไม่สามารถดึงโปรไฟล์จาก LINE ได้");
-        });
-        
-        return;
-    }
+            
+            return;
+        }
         if (action === 'approve' || action === 'reject') {
             document.getElementById("loading").innerText = "กำลังบันทึกการอนุมัติ...";
             await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: action, rowId: urlParams.get('rowId'), userId: urlParams.get('userId') }) });
@@ -239,13 +136,10 @@
             let leaveStartDate = new Date(item.rawStartDate); 
             let btnHtml = "";
             
-            // ปุ่มยกเลิกใบลาปกติ
             if (item.status !== "ยกเลิก" && item.status !== "ปฏิเสธ" && leaveStartDate > today) {
                 btnHtml = `<button class="btn-cancel" onclick="cancelLeave('${item.rowId}')">✖ ยกเลิกการลานี้</button>`;
             }
             
-            // 🌟 เงื่อนไขพิเศษ: ถ้าเป็น "ลาป่วย" และถูกอนุมัติแล้ว แต่ในชีตหลังบ้านแจ้งว่า "ไม่มีใบรับรองแพทย์" (hasCert เป็น false)
-            // จะแถมปุ่ม "ส่งใบรับรองแพทย์เพิ่ม" เด้งพ่วงขึ้นมาให้พนักงานกดส่งย้อนหลังได้ด้วย
             if (item.type === "ลาป่วย" && item.status === "อนุมัติแล้ว" && item.hasCert === false) {
                 btnHtml += `<button class="btn-upload-more" onclick="openUploadModal('${item.rowId}')">📑 ส่งใบรับรองแพทย์เพิ่ม</button>`;
             }
@@ -264,7 +158,6 @@
         document.getElementById("historySection").classList.remove("hidden");
     }
 
-    // ฟังก์ชันเปิด/ปิดหน้าต่างการอัปโหลดเพิ่มเติมย้อนหลัง
     function openUploadModal(rowId) {
         document.getElementById("targetRowId").value = rowId;
         document.getElementById("additionalCertFile").value = "";
@@ -275,8 +168,10 @@
         document.getElementById("uploadCertModal").style.display = "none";
     }
 
-    // 🌟 ฟังก์ชันส่งรูปภาพใบรับรองแพทย์ย้อนหลังเข้าหา Admin
+    // 🌟 แก้ไขจุดป้องกันกดซ้ำที่ 1: ส่งใบรับรองแพทย์ย้อนหลัง
     async function submitAdditionalCert() {
+        if (isSubmitting) return; // ล็อกทันทีถ้าอยู่ระหว่างส่งข้อมูล
+
         const fileInput = document.getElementById("additionalCertFile");
         const rowId = document.getElementById("targetRowId").value;
         
@@ -285,46 +180,54 @@
             return;
         }
 
-        document.getElementById("btnSubmitAdditional").innerText = "กำลังอัปโหลดเอกสาร...";
-        document.getElementById("btnSubmitAdditional").disabled = true;
+        // เริ่มต้นล็อกปุ่มและเปลี่ยนสเตตัส
+        isSubmitting = true;
+        const btn = document.getElementById("btnSubmitAdditional");
+        btn.innerText = "กำลังอัปโหลดเอกสาร...";
+        btn.disabled = true;
 
-        let imageBase64 = await toBase64(fileInput.files[0]);
-        imageBase64 = imageBase64.split(',')[1];
+        try {
+            let imageBase64 = await toBase64(fileInput.files[0]);
+            imageBase64 = imageBase64.split(',')[1];
 
-        const payload = {
-            action: "uploadCert",
-            lineId: userLineId,
-            rowId: rowId,
-            imageBlob: imageBase64
-        };
+            const payload = {
+                action: "uploadCert",
+                lineId: userLineId,
+                rowId: rowId,
+                imageBlob: imageBase64
+            };
 
-        fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        })
-        .then(res => res.json())
-        .then(data => {
+            const res = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
             if (data.status === "success") {
                 alert("🎉 ส่งใบรับรองแพทย์เพิ่มเติมเรียบร้อยแล้วค่ะ! ระบบแจ้งไปยังผู้บริหารแล้ว");
                 closeUploadModal();
-                location.reload(); // รีเฟรชหน้าจอเพื่อลบปุ่มส่งรูปออก
+                location.reload();
             } else {
                 alert("❌ เกิดข้อผิดพลาด: " + data.message);
-                document.getElementById("btnSubmitAdditional").innerText = "ส่งเอกสารให้ผู้บริหาร";
-                document.getElementById("btnSubmitAdditional").disabled = false;
+                resetAdditionalButton();
             }
-        })
-        .catch(err => {
+        } catch (err) {
             console.error(err);
             alert("❌ ระบบขัดข้องไม่สามารถอัปโหลดได้: " + err.message);
-            document.getElementById("btnSubmitAdditional").innerText = "ส่งเอกสารให้ผู้บริหาร";
-            document.getElementById("btnSubmitAdditional").disabled = false;
-        });
+            resetAdditionalButton();
+        }
     }
 
-async function submitLeave() {
-        document.getElementById("btnSubmit").innerText = "กำลังส่งข้อมูล...";
-        document.getElementById("btnSubmit").disabled = true;
+    function resetAdditionalButton() {
+        isSubmitting = false;
+        const btn = document.getElementById("btnSubmitAdditional");
+        btn.innerText = "ส่งเอกสารให้ผู้บริหาร";
+        btn.disabled = false;
+    }
+
+    // 🌟 แก้ไขจุดป้องกันกดซ้ำที่ 2: ปุ่มส่งใบลาปกติ
+    async function submitLeave() {
+        if (isSubmitting) return; // ล็อกทันทีถ้าคลิกเบิ้ล
 
         const type = document.getElementById("leaveType").value;
         const duration = document.getElementById("leaveDuration").value;
@@ -336,54 +239,70 @@ async function submitLeave() {
         let startDate = document.getElementById("startDate").value;
         let endDate = document.getElementById("endDate").value;
         
+        if (!startDate) {
+            alert("❌ กรุณาระบุวันเริ่มลาด้วยค่ะ");
+            return;
+        }
+
         if (duration !== "เต็มวัน" && !endDate) {
             endDate = startDate;
         }
 
-        let imageBase64 = "";
-        if (type === "ลาป่วย" && fileInput.files.length > 0 && !noCert) {
-            imageBase64 = await toBase64(fileInput.files[0]);
-            imageBase64 = imageBase64.split(',')[1]; 
-        }
+        // เริ่มขั้นตอนการส่งข้อมูลจริง -> สั่ง Lock แอป
+        isSubmitting = true;
+        const btn = document.getElementById("btnSubmit");
+        btn.innerText = "กำลังส่งข้อมูล...";
+        btn.disabled = true;
 
-        const payload = {
-            action: "leave",
-            lineId: userLineId,
-            type: type,
-            duration: duration,
-            startTime: startTime,
-            endTime: endTime,
-            startDate: startDate,
-            endDate: endDate,
-            imageBlob: imageBase64,
-            noCert: noCert
-        };
+        try {
+            let imageBase64 = "";
+            if (type === "ลาป่วย" && fileInput.files.length > 0 && !noCert) {
+                imageBase64 = await toBase64(fileInput.files[0]);
+                imageBase64 = imageBase64.split(',')[1]; 
+            }
 
-        fetch(GOOGLE_SCRIPT_URL, { 
-            method: 'POST', 
-            body: JSON.stringify(payload) 
-        })
-        .then(res => {
+            const payload = {
+                action: "leave",
+                lineId: userLineId,
+                type: type,
+                duration: duration,
+                startTime: startTime,
+                endTime: endTime,
+                startDate: startDate,
+                endDate: endDate,
+                imageBlob: imageBase64,
+                noCert: noCert
+            };
+
+            const res = await fetch(GOOGLE_SCRIPT_URL, { 
+                method: 'POST', 
+                body: JSON.stringify(payload) 
+            });
+
             if (!res.ok) throw new Error('เซิร์ฟเวอร์หลังบ้านตอบกลับผิดพลาด (500 Error)');
-            return res.json();
-        })
-        .then(data => {
+            const data = await res.json();
+
             if (data.status === "success") {
                 showSuccessScreen();
             } else {
                 alert(data.message);
-                document.getElementById("btnSubmit").innerText = "ส่งคำขออนุญาตลา";
-                document.getElementById("btnSubmit").disabled = false;
+                resetLeaveButton();
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error:', error);
             alert("❌ ระบบขัดข้อง: " + error.message + "\nกรุณาตรวจสอบการตั้งค่า Deploy หลังบ้านหรือลองใหมู่อีกครั้งครับ");
-            document.getElementById("btnSubmit").innerText = "ส่งคำขออนุญาตลา";
-            document.getElementById("btnSubmit").disabled = false;
-        });
+            resetLeaveButton();
+        }
     }
-        function showSuccessScreen() {
+
+    function resetLeaveButton() {
+        isSubmitting = false;
+        const btn = document.getElementById("btnSubmit");
+        btn.innerText = "ส่งคำขออนุญาตลา";
+        btn.disabled = false;
+    }
+
+    function showSuccessScreen() {
         document.body.innerHTML = `
             <div style="text-align: center; padding: 60px 20px; font-family: 'Sarabun', sans-serif;">
                 <div style="font-size: 70px; color: #00B900; margin-bottom: 20px;">✓</div>
@@ -441,5 +360,3 @@ async function submitLeave() {
 
     main();
 </script>
-</body>
-</html>
