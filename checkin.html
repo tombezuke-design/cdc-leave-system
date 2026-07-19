@@ -95,28 +95,36 @@
     document.getElementById("status-icon").innerText = "⏳";
     document.getElementById("status-text").innerText = "จับรหัสสำเร็จ! กำลังส่งพิกัดและข้อมูลสอบทานกับหลังบ้านกูเกิล...";
 
-    fetch(WEB_APP_URL, {
-      method: "POST",
-      body: JSON.stringify({
+    // 🌟 ปรับมาใช้ FormData เพื่อให้ข้ามผ่านระบบล็อก CORS ของเบราว์เซอร์มือถือ
+    const formData = new FormData();
+    const payload = {
         action: "checkInFloor2",
         lineId: userLineId,
         key: scannedToken,
         lat: lat,
         lng: lng
-      })
+    };
+    formData.append('jsonData', JSON.stringify(payload));
+
+    fetch(WEB_APP_URL, {
+        method: "POST",
+        body: formData // ส่งก้อน FormData แทนการส่ง JSON ตรงๆ แบบเดิม
     })
     .then(res => res.json())
     .then(resData => {
-      if (resData.status === "success") {
-        document.getElementById("status-icon").innerText = "✅";
-        document.getElementById("status-text").innerHTML = `<span style="color:#34d399; font-size:22px; font-weight:bold;">บันทึกสำเร็จ!</span><br>${resData.message}`;
-        setTimeout(() => { liff.closeWindow(); }, 3500);
-      } else {
-        showError("ปฏิเสธการลงเวลา", resData.message);
-      }
+        if (resData.status === "success") {
+            document.getElementById("status-icon").innerText = "✅";
+            document.getElementById("status-text").innerHTML = `<span style="color:#34d399; font-size:22px; font-weight:bold;">บันทึกสำเร็จ!</span><br>${resData.message}`;
+            setTimeout(() => { liff.closeWindow(); }, 3500);
+        } else {
+            showError("ปฏิเสธการลงเวลา", resData.message);
+        }
     })
-    .catch(err => { showError("ระบบขัดข้อง", "ไม่สามารถเชื่อมต่อส่งยอดหาตารางกูเกิลชีตได้ค่ะ"); });
-  }
+    .catch(err => { 
+        console.error(err);
+        showError("ระบบขัดข้อง", "ไม่สามารถเชื่อมต่อส่งยอดหาตารางกูเกิลชีตได้ค่ะ"); 
+    });
+}
 
   function showError(title, msg) {
     if(html5QrcodeScanner) {
