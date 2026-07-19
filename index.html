@@ -1,10 +1,9 @@
-<!-- คัดลอกเฉพาะส่วน <script> นี้ไปวางทับอันเดิมได้เลยครับ -->
 <script>
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby_f4scSCraJvRoc8pMbUgfEUOVUs5efLhe-cUh2lNTRKsL0IJ_xHm_42Y6MpC11G_d/exec"; 
     const LIFF_ID = "2010085241-Szu0Ekco";
     let userLineId = "";
     
-    // 🌟 เพิ่มตัวแปร Flag ป้องกันการส่งข้อมูลซ้อนกันระดับระดับแอปพลิเคชัน
+    // 🌟 เพิ่มตัวแปร Flag ป้องกันการส่งข้อมูลซ้อนกันระดับแอปพลิเคชัน
     let isSubmitting = false; 
 
     async function main() {
@@ -170,7 +169,7 @@
 
     // 🌟 แก้ไขจุดป้องกันกดซ้ำที่ 1: ส่งใบรับรองแพทย์ย้อนหลัง
     async function submitAdditionalCert() {
-        if (isSubmitting) return; // ล็อกทันทีถ้าอยู่ระหว่างส่งข้อมูล
+        if (isSubmitting) return; 
 
         const fileInput = document.getElementById("additionalCertFile");
         const rowId = document.getElementById("targetRowId").value;
@@ -180,7 +179,6 @@
             return;
         }
 
-        // เริ่มต้นล็อกปุ่มและเปลี่ยนสเตตัส
         isSubmitting = true;
         const btn = document.getElementById("btnSubmitAdditional");
         btn.innerText = "กำลังอัปโหลดเอกสาร...";
@@ -227,7 +225,7 @@
 
     // 🌟 แก้ไขจุดป้องกันกดซ้ำที่ 2: ปุ่มส่งใบลาปกติ
     async function submitLeave() {
-        if (isSubmitting) return; // ล็อกทันทีถ้าคลิกเบิ้ล
+        if (isSubmitting) return; 
 
         const type = document.getElementById("leaveType").value;
         const duration = document.getElementById("leaveDuration").value;
@@ -248,7 +246,6 @@
             endDate = startDate;
         }
 
-        // เริ่มขั้นตอนการส่งข้อมูลจริง -> สั่ง Lock แอป
         isSubmitting = true;
         const btn = document.getElementById("btnSubmit");
         btn.innerText = "กำลังส่งข้อมูล...";
@@ -342,13 +339,58 @@
         }
     }
 
+    // 🌟 แก้ไขจุดป้องกันกดซ้ำที่ 3: ปุ่มลงทะเบียนพนักงานใหม่
     function submitRegister() {
-        const payload = { action: "register", lineId: userLineId, name: document.getElementById("empName").value, idCard: document.getElementById("idCard").value, phone: document.getElementById("phone").value };
+        if (isSubmitting) return; 
+
+        const empName = document.getElementById("empName").value.trim();
+        const idCard = document.getElementById("idCard").value.trim();
+        const phone = document.getElementById("phone").value.trim();
+
+        if (!empName || !idCard || !phone) {
+            alert("❌ กรุณากรอกข้อมูลให้ครบทุกช่องก่อนลงทะเบียนนะคะ");
+            return;
+        }
+
+        isSubmitting = true;
+        const btn = document.querySelector("#registerForm .btn-main");
+        if (btn) {
+            btn.innerText = "กำลังลงทะเบียน...";
+            btn.disabled = true;
+        }
+
+        const payload = { 
+            action: "register", 
+            lineId: userLineId, 
+            name: empName, 
+            idCard: idCard, 
+            phone: phone 
+        };
+
         fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) })
-        .then(res => res.json()).then(data => {
-            alert("ลงทะเบียนสำเร็จ!");
-            location.reload();
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "success") {
+                alert("🎉 ลงทะเบียนสำเร็จเรียบร้อยแล้วค่ะ!");
+                location.reload();
+            } else {
+                alert("❌ เกิดข้อผิดพลาดจากระบบ: " + data.message);
+                resetRegisterButton(btn);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("❌ เกิดข้อผิดพลาดในการลงทะเบียน: " + err.message);
+            resetRegisterButton(btn);
         });
+    }
+
+    function resetRegisterButton(btn) {
+        isSubmitting = false;
+        if (btn) {
+            btn.innerText = "ลงทะเบียน";
+            btn.disabled = false;
+        }
     }
 
     const toBase64 = file => new Promise((resolve, reject) => {
